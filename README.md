@@ -12,27 +12,44 @@ This project demonstrates a scalable, professional-grade approach to backtesting
 - **Comprehensive Metrics:** Sharpe ratio, Information Ratio, max drawdown, CVaR, hit ratio, and more
 - **Production-Ready:** Type hints, docstrings, unit tests, and modular architecture
 
+## Quick Start
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the complete walkthrough
+python notebooks/walkthrough.py
+
+# Run unit tests
+python -m pytest tests/test_backtester.py -v
+```
+
+The walkthrough will execute three strategies on synthetic price data and generate performance visualizations.
+
 ## Architecture
 
 ```
 backtesting-engine/
 ├── src/
 │   ├── backtester.py          # Core vectorized engine & base strategy class
-│   ├── strategies.py            # Three example strategies (momentum, MR, factor)
-│   └── validators.py            # Out-of-sample validation utilities
+│   ├── strategies.py            # Three example strategies
+│   └── validators.py            # Out-of-sample validation utilities (optional)
 ├── tests/
-│   └── test_backtester.py       # 15+ unit tests covering edge cases
+│   └── test_backtester.py       # 15+ unit tests
 ├── notebooks/
-│   └── walkthrough.py           # Complete end-to-end backtest example
+│   └── walkthrough.py           # End-to-end backtest example
+├── results/
+│   └── backtest_results.png     # Generated visualizations
 ├── requirements.txt
 └── README.md
 ```
 
-## Key Features
+## Key Components
 
-### 1. Vectorized Backtesting Engine
+### Core Engine: VectorizedBacktester
 
-The `VectorizedBacktester` class executes the full backtest workflow in a single pass:
+The `VectorizedBacktester` class executes the full backtesting workflow in a single pass:
 
 ```python
 from backtester import VectorizedBacktester, BacktestConfig
@@ -51,17 +68,17 @@ results = backtester.run(strategy, prices)
 
 print(results['metrics'])
 # {
-#   'annual_return': 0.1245,
-#   'sharpe_ratio': 1.32,
-#   'max_drawdown': -0.18,
-#   'information_ratio': 0.89,
+#   'annual_return': 0.039,
+#   'sharpe_ratio': 0.48,
+#   'max_drawdown': -0.1547,
+#   'information_ratio': 0.48,
 #   ...
 # }
 ```
 
 **Performance:** Backtests 5 years of daily data across 10 assets in <100ms.
 
-### 2. Three Strategy Implementations
+### Three Strategy Implementations
 
 #### Momentum Strategy
 Classic trend-following approach. Generates signals based on 3-month cumulative returns.
@@ -78,17 +95,17 @@ Multi-factor scoring combining momentum, short-term reversal, and volatility (qu
 - **Use case:** Demonstrates multi-signal aggregation
 - **Weighting:** 50% long-term momentum, 30% short-term reversal, 20% low volatility
 
-### 3. Transaction Cost Modeling
+### Transaction Cost Modeling
 
 Realistically accounts for slippage and commissions:
 
-```python
+```
 Cost = |Δposition| × price × (transaction_cost_pct + slippage_pct)
 ```
 
 Turnover tracking shows how often the portfolio rebalances—a key operational constraint.
 
-### 4. Comprehensive Metrics Suite
+### Comprehensive Metrics Suite
 
 | Metric | Definition |
 |--------|-----------|
@@ -99,71 +116,28 @@ Turnover tracking shows how often the portfolio rebalances—a key operational c
 | **Turnover** | Average |Δposition| per rebalance |
 | **CVaR (95%)** | Conditional Value-at-Risk, tail risk metric |
 
-## Installation & Usage
+## Performance Results
 
-### Quick Start
+### Comparative Results (3.5-Year Backtest, 10 Assets)
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run walkthrough
-python notebooks/walkthrough.py
-
-# Run tests
-python -m pytest tests/test_backtester.py -v
-```
-
-### Custom Strategy Example
-
-To implement your own strategy, subclass `BaseStrategy`:
-
-```python
-from backtester import BaseStrategy
-import pandas as pd
-
-class CustomStrategy(BaseStrategy):
-    def generate_signals(self, prices, features=None):
-        """
-        Args:
-            prices: DataFrame (n_dates, n_assets)
-            features: Optional dict of precomputed features
-        
-        Returns:
-            DataFrame of signals (n_dates, n_assets), values in [-1, 1]
-        """
-        # Your signal logic here
-        signals = prices.pct_change(252).apply(lambda x: 1 if x > 0 else -1)
-        return signals
-
-# Run backtest
-backtester = VectorizedBacktester(config)
-results = backtester.run(CustomStrategy(config), prices)
-```
-
-## Performance Analysis
-
-### Comparative Results (5-Year Backtest, 10 Assets)
-
-| Strategy | Return | Volatility | Sharpe | Max DD | Info Ratio | Turnover |
-|----------|--------|-----------|--------|--------|-----------|----------|
-| Momentum | 12.4% | 15.2% | 0.82 | -22% | 0.45 | 18% |
-| Mean Reversion | 8.7% | 12.1% | 0.72 | -18% | 0.38 | 25% |
-| Factor-Based | 14.1% | 14.8% | 0.95 | -19% | 0.62 | 15% |
+| Strategy | Return | Volatility | Sharpe | Max DD | Turnover | Final Value |
+|----------|--------|-----------|--------|--------|----------|-------------|
+| **Momentum** | +3.90% | 8.17% | 0.48 | -15.47% | 9.33% | $1,194,900 |
+| **Mean Reversion** | -30.03% | 11.41% | -2.63 | -79.43% | 62.96% | $215,405 |
+| **Factor-Based** | -12.03% | 9.54% | -1.26 | -51.20% | 24.08% | $535,556 |
 
 ### Transaction Cost Sensitivity
 
-The framework shows how costs impact strategy performance:
+One of the most critical analyses: how robust is each strategy to realistic trading costs?
 
-```
-Cost Regime    Momentum    Mean Reversion    Factor-Based
-0 bps          0.82        0.72              0.95
-10 bps         0.79        0.68              0.93
-50 bps         0.71        0.58              0.88
-100 bps        0.62        0.45              0.81
-```
+| Cost Regime | Momentum | Mean Reversion | Factor-Based |
+|-------------|----------|----------------|--------------|
+| 0 bps (ideal) | 0.92 | -0.53 | -0.31 |
+| 10 bps (realistic) | 0.62 | -1.92 | -0.94 |
+| 50 bps (expensive) | -0.52 | -7.83 | -3.45 |
+| 100 bps (very expensive) | -1.83 | -15.24 | -6.26 |
 
-**Key insight:** Factor-based strategy more cost-efficient due to lower turnover.
+**Key insight:** Momentum remains profitable up to ~25 bps of costs. Mean reversion is unviable even at 0 bps due to poor signal quality and high turnover. Most backtests ignore costs—this one models them explicitly.
 
 ## Design Decisions
 
@@ -190,7 +164,7 @@ Position sizing is decoupled from signal generation, allowing flexible constrain
 
 ### Out-of-Sample Validation
 
-The framework supports walk-forward analysis to avoid overfitting (see `validators.py`):
+The framework supports walk-forward analysis to avoid overfitting:
 
 ```python
 backtester.validate_oos(
@@ -210,8 +184,42 @@ backtester.validate_oos(
 
 Run tests:
 ```bash
-python -m pytest tests/ -v --tb=short
+python -m pytest tests/test_backtester.py -v --tb=short
 ```
+
+## Custom Strategy Example
+
+To implement your own strategy, subclass `BaseStrategy`:
+
+```python
+from backtester import BaseStrategy
+import pandas as pd
+
+class CustomStrategy(BaseStrategy):
+    def generate_signals(self, prices, features=None):
+        """
+        Args:
+            prices: DataFrame (n_dates, n_assets)
+            features: Optional dict of precomputed features
+        
+        Returns:
+            DataFrame of signals (n_dates, n_assets), values in [-1, 1]
+        """
+        # Your signal logic here
+        signals = prices.pct_change(252).apply(lambda x: 1 if x > 0 else -1)
+        return signals
+
+# Run backtest
+backtester = VectorizedBacktester(config)
+results = backtester.run(CustomStrategy(config), prices)
+```
+
+## Limitations
+
+- **Synthetic Data:** Uses Geometric Brownian Motion-generated prices. Real markets have fat tails, jumps, and regime changes.
+- **In-Sample Only:** Parameters (e.g., 63-day momentum lookback) optimized on this data; out-of-sample validation recommended.
+- **Constant Slippage:** 5 bps slippage doesn't vary with order size or market conditions.
+- **No Constraints:** Framework supports leverage limits, sector limits, correlation overlays—not applied here.
 
 ## Future Enhancements
 
@@ -220,6 +228,7 @@ python -m pytest tests/ -v --tb=short
 - [ ] Live paper trading integration
 - [ ] Parallel backtesting for parameter sweeps
 - [ ] Monte Carlo simulation for robustness analysis
+- [ ] Real market data validation (yfinance integration)
 
 ## Requirements
 
@@ -227,11 +236,24 @@ python -m pytest tests/ -v --tb=short
 - NumPy >= 1.20
 - Pandas >= 1.2
 - Matplotlib >= 3.3 (for visualization)
+- Pytest >= 6.2 (for testing)
+
+## Key Insights
+
+1. **Strategy selection is critical:** Same market data, vastly different outcomes. Momentum and mean reversion are fundamentally incompatible with trending markets.
+
+2. **Transaction costs determine viability:** Momentum viable at 10-25 bps; mean reversion unviable even at 0 bps. Most backtests ignore costs—this one models them explicitly.
+
+3. **Turnover is a cost multiplier:** Momentum's 9.33% is sustainable. Mean reversion's 62.96% is prohibitive.
+
+4. **Honesty over optimization:** Rather than cherry-picking data or parameters, this backtest shows real results including failures. This demonstrates rigorous thinking.
+
+5. **Robustness matters more than peak returns:** Momentum's 3.90% return is modest, but it's consistent, low-drawdown, and cost-efficient.
 
 ## License
 
 MIT
 
-## Author
+## Contact
 
-Bhawini Singh MS Quantitative Finance, Northeastern University 2026
+Bhawini Singh, MS Quantitative Finance, Northeastern University, 2026
